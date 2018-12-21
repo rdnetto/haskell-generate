@@ -9,6 +9,7 @@ module Language.Haskell.Generate.TH
   ) where
 
 import Data.Char
+import Language.Haskell.Exts.SrcLoc
 import Language.Haskell.Exts.Syntax hiding (Name)
 import Language.Haskell.Generate.Monad hiding (Name)
 import Language.Haskell.TH
@@ -33,7 +34,7 @@ declareNamedThing (thing, name, thingClass) = do
   sequence
     [ sigD (mkName name) $ return $ overQuantifiedType (ConT ''ExpG `AppT`) typ
     , funD (mkName name) $ return $ flip (clause []) [] $ normalB 
-        [| useValue $(lift md) $ $(conE thingClass) $(lift $ nameBase thing) |]
+        [| useValue $(lift md) $ $(conE thingClass) noLoc $(lift $ nameBase thing) |]
     ]
 
   where overQuantifiedType f (ForallT bnds ctx t) = ForallT (map removeKind bnds) ctx $ overQuantifiedType f t
