@@ -25,9 +25,9 @@ declareNamedThing :: (Name, String, Name) -> DecsQ
 declareNamedThing (thing, name, thingClass) = do
   info <- reify thing
   typ <- case info of
-    VarI _ t _ _ -> return t
-    ClassOpI _ t _ _ -> return t
-    DataConI _ t _ _ -> return t    
+    VarI _ t _ -> return t
+    ClassOpI _ t _ -> return t
+    DataConI _ t _ -> return t    
     _ -> fail $ "Not a function: " ++ nameBase thing
   md <- maybe (fail "No module name for function!") return $ nameModule thing
   sequence
