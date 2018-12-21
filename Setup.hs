@@ -3,14 +3,17 @@ module Main (main) where
 
 import Data.IORef
 import Data.List ( nub )
-import Data.Version ( showVersion )
-import Distribution.Package ( PackageName(PackageName), PackageId, InstalledPackageId, packageVersion, packageName )
+import Distribution.Package ( PackageName, PackageId, InstalledPackageId, packageVersion, packageName, unPackageName )
 import Distribution.PackageDescription ( PackageDescription(), TestSuite(..), hsSourceDirs, libBuildInfo, buildInfo)
+import Distribution.Pretty (prettyShow)
 import Distribution.Simple ( defaultMainWithHooks, UserHooks(..), simpleUserHooks )
 import Distribution.Simple.BuildPaths ( autogenModulesDir )
 import Distribution.Simple.LocalBuildInfo ( withLibLBI, withTestLBI, withExeLBI, ComponentLocalBuildInfo(), LocalBuildInfo(), componentPackageDeps )
 import Distribution.Simple.Setup ( BuildFlags(buildVerbosity), fromFlag, buildDistPref, defaultDistPref, fromFlagOrDefault )
 import Distribution.Simple.Utils ( rewriteFile, createDirectoryIfMissingVerbose )
+import Distribution.Types.MungedPackageId (MungedPackageId(..))
+import Distribution.Types.UnitId (UnitId)
+import Distribution.Types.UnqualComponentName (unUnqualComponentName)
 import Distribution.Verbosity ( Verbosity )
 import System.Directory ( canonicalizePath )
 import System.FilePath ( (</>) )
@@ -47,8 +50,8 @@ generateBuildModule verbosity pkg lbi flags = do
       modifyIORef depsVar $ appendDL . singletonDL $ depsEntry (buildInfo exe) exelbi suitelbi
     deps <- fmap ($ []) $ readIORef depsVar
 
-    rewriteFile (map fixchar $ dir </> "Build_" ++ testName suite ++ ".hs") $ unlines 
-      [ "module Build_" ++ map fixchar (testName suite) ++ " where"
+    rewriteFile (map fixchar $ dir </> "Build_" ++ unUnqualComponentName (testName suite) ++ ".hs") $ unlines
+      [ "module Build_" ++ map fixchar (unUnqualComponentName $ testName suite) ++ " where"
       , "getDistDir :: FilePath"
       , "getDistDir = " ++ show distDir
       , "getSrcDirs :: [FilePath]"
@@ -59,11 +62,10 @@ generateBuildModule verbosity pkg lbi flags = do
 
   where
     formatdeps = map (formatone . snd)
-    formatone p = case packageName p of
-      PackageName n -> n ++ "-" ++ showVersion (packageVersion p)
+    formatone (MungedPackageId p v) = prettyShow p ++ "-" ++ prettyShow v
     depsEntry targetbi targetlbi suitelbi = (hsSourceDirs targetbi, formatdeps $ testDeps targetlbi suitelbi)
     fixchar '-' = '_'
     fixchar c = c
 
-testDeps :: ComponentLocalBuildInfo -> ComponentLocalBuildInfo -> [(InstalledPackageId, PackageId)]
+testDeps :: ComponentLocalBuildInfo -> ComponentLocalBuildInfo -> [(UnitId, MungedPackageId)]
 testDeps xs ys = nub $ componentPackageDeps xs ++ componentPackageDeps ys
